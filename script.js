@@ -14,8 +14,11 @@ const updateNavbarState = () => {
   }
 };
 
+updateNavbarState();
 window.addEventListener('scroll', updateNavbarState);
 window.addEventListener('resize', updateNavbarState);
+window.addEventListener('load', updateNavbarState);
+window.addEventListener('pageshow', updateNavbarState);
 window.addEventListener('DOMContentLoaded', updateNavbarState);
 
 // Mobile Menu Toggle
@@ -249,8 +252,13 @@ function clamp(value, min, max) {
 const canvas = document.getElementById('spider-canvas');
 if (canvas) {
   const ctx = canvas.getContext('2d');
+  const heroSection = canvas.closest('.hero-section') || canvas.parentElement;
+
+  const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
   const readCanvasSize = () => {
-    const rect = canvas.getBoundingClientRect();
+    const rect = heroSection.getBoundingClientRect();
     return {
       width: Math.max(1, Math.round(rect.width || window.innerWidth)),
       height: Math.max(1, Math.round(rect.height || window.innerHeight))
@@ -260,12 +268,16 @@ if (canvas) {
   let { width, height } = readCanvasSize();
 
   const resizeCanvasForDpr = () => {
-    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const dprCap = isIOSDevice ? 3.5 : 3;
+    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, dprCap));
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
-    canvas.width = Math.max(1, Math.floor(width * dpr));
-    canvas.height = Math.max(1, Math.floor(height * dpr));
+    canvas.width = Math.max(1, Math.ceil(width * dpr));
+    canvas.height = Math.max(1, Math.ceil(height * dpr));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.imageSmoothingEnabled = true;
   };
 
   resizeCanvasForDpr();
@@ -431,6 +443,12 @@ if (canvas) {
     initWeb();
   };
 
+  const settleCanvasSize = () => {
+    handleResize();
+    window.setTimeout(handleResize, 120);
+    window.setTimeout(handleResize, 360);
+  };
+
   canvas.style.touchAction = 'none';
   canvas.addEventListener('mousemove', handleMouseMove);
   canvas.addEventListener('mouseleave', handleMouseLeave);
@@ -439,8 +457,15 @@ if (canvas) {
   canvas.addEventListener('touchend', handleTouchEnd);
   canvas.addEventListener('touchcancel', handleTouchEnd);
   window.addEventListener('resize', handleResize);
+  window.addEventListener('orientationchange', settleCanvasSize);
+  window.addEventListener('load', settleCanvasSize);
+  window.addEventListener('pageshow', settleCanvasSize);
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', handleResize);
+  }
+  if (window.ResizeObserver) {
+    const observer = new ResizeObserver(() => handleResize());
+    observer.observe(heroSection);
   }
 
   const gravity = 0.45; 
