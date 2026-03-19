@@ -324,6 +324,8 @@ if (canvas) {
   let nodes = [];
   let sticks = [];
   let spider;
+  let spiderHomeX = width / 2;
+  let spiderHomeY = height / 2;
   const BOUNDS_PADDING = 4;
   const SPIDER_MARGIN = 14;
   let bounds = {
@@ -348,8 +350,10 @@ if (canvas) {
     
     const cx = width / 2;
     const cy = height / 2;
-    
-    spider = new Spider(cx, cy);
+
+    spiderHomeX = clamp(width * 0.5, bounds.minX + SPIDER_MARGIN, bounds.maxX - SPIDER_MARGIN);
+    spiderHomeY = clamp(height * 0.58, bounds.minY + SPIDER_MARGIN, bounds.maxY - SPIDER_MARGIN);
+    spider = new Spider(spiderHomeX, spiderHomeY);
     
     const numRadials = 21;
     const numRings = 13;
@@ -621,7 +625,7 @@ if (canvas) {
     }
 
     if (spider) {
-      spider.update(sticks, width / 2, height / 2, {
+      spider.update(sticks, spiderHomeX, spiderHomeY, {
         minX: bounds.minX + SPIDER_MARGIN,
         maxX: bounds.maxX - SPIDER_MARGIN,
         minY: bounds.minY + SPIDER_MARGIN,
@@ -645,7 +649,7 @@ if (canvas) {
     ctx.stroke();
 
     if (spider) {
-      spider.draw(ctx, width / 2, height / 2);
+      spider.draw(ctx, spiderHomeX, spiderHomeY);
     }
   };
 
