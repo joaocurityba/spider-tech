@@ -3,16 +3,9 @@ lucide.createIcons();
 
 // Navbar Scroll Effect
 const navbar = document.getElementById('navbar');
-const mobileNavbarMq = window.matchMedia('(max-width: 767px)');
 const updateNavbarState = () => {
-  const shouldSolid = mobileNavbarMq.matches || window.scrollY > 50;
-  if (shouldSolid) {
-    navbar.classList.add('bg-[#020202]/80', 'backdrop-blur-md', 'border-b', 'border-white/5', 'py-4');
-    navbar.classList.remove('bg-transparent', 'py-6');
-  } else {
-    navbar.classList.add('bg-transparent', 'py-6');
-    navbar.classList.remove('bg-[#020202]/80', 'backdrop-blur-md', 'border-b', 'border-white/5', 'py-4');
-  }
+  navbar.classList.add('bg-[#020202]/80', 'backdrop-blur-md', 'border-b', 'border-white/5', 'py-4');
+  navbar.classList.remove('bg-transparent', 'py-6');
 };
 
 updateNavbarState();
@@ -21,7 +14,6 @@ window.addEventListener('resize', updateNavbarState);
 window.addEventListener('load', updateNavbarState);
 window.addEventListener('pageshow', updateNavbarState);
 window.addEventListener('DOMContentLoaded', updateNavbarState);
-mobileNavbarMq.addEventListener('change', updateNavbarState);
 
 // Mobile Menu Toggle
 const mobileMenuBtn = document.getElementById('mobile-menu-btn');
@@ -63,9 +55,7 @@ document.querySelectorAll('#mobile-menu a').forEach(link => {
 });
 
 window.addEventListener('resize', () => {
-  if (!mobileNavbarMq.matches) {
-    closeMobileMenu();
-  }
+  closeMobileMenu();
 });
 
 renderMobileMenuIcon('menu');
