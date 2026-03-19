@@ -246,8 +246,15 @@ if (canvas) {
   const ctx = canvas.getContext('2d');
   let width = canvas.clientWidth || window.innerWidth;
   let height = canvas.clientHeight || window.innerHeight;
-  canvas.width = width;
-  canvas.height = height;
+
+  const resizeCanvasForDpr = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.floor(width * dpr));
+    canvas.height = Math.max(1, Math.floor(height * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+
+  resizeCanvasForDpr();
 
   let nodes = [];
   let sticks = [];
@@ -404,8 +411,7 @@ if (canvas) {
   const handleResize = () => {
     width = canvas.clientWidth || window.innerWidth;
     height = canvas.clientHeight || window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
+    resizeCanvasForDpr();
     updateBounds();
     initWeb();
   };
