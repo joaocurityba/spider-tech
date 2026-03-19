@@ -3,15 +3,20 @@ lucide.createIcons();
 
 // Navbar Scroll Effect
 const navbar = document.getElementById('navbar');
-window.addEventListener('scroll', () => {
-  if (window.scrollY > 50) {
+const updateNavbarState = () => {
+  const shouldSolid = window.scrollY > 50 || window.innerWidth < 768;
+  if (shouldSolid) {
     navbar.classList.add('bg-[#020202]/80', 'backdrop-blur-md', 'border-b', 'border-white/5', 'py-4');
     navbar.classList.remove('bg-transparent', 'py-6');
   } else {
     navbar.classList.add('bg-transparent', 'py-6');
     navbar.classList.remove('bg-[#020202]/80', 'backdrop-blur-md', 'border-b', 'border-white/5', 'py-4');
   }
-});
+};
+
+window.addEventListener('scroll', updateNavbarState);
+window.addEventListener('resize', updateNavbarState);
+window.addEventListener('DOMContentLoaded', updateNavbarState);
 
 // Mobile Menu Toggle
 const mobileMenuBtn = document.getElementById('mobile-menu-btn');
@@ -244,11 +249,20 @@ function clamp(value, min, max) {
 const canvas = document.getElementById('spider-canvas');
 if (canvas) {
   const ctx = canvas.getContext('2d');
-  let width = canvas.clientWidth || window.innerWidth;
-  let height = canvas.clientHeight || window.innerHeight;
+  const readCanvasSize = () => {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      width: Math.max(1, Math.round(rect.width || window.innerWidth)),
+      height: Math.max(1, Math.round(rect.height || window.innerHeight))
+    };
+  };
+
+  let { width, height } = readCanvasSize();
 
   const resizeCanvasForDpr = () => {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
     canvas.width = Math.max(1, Math.floor(width * dpr));
     canvas.height = Math.max(1, Math.floor(height * dpr));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -409,8 +423,9 @@ if (canvas) {
   };
 
   const handleResize = () => {
-    width = canvas.clientWidth || window.innerWidth;
-    height = canvas.clientHeight || window.innerHeight;
+    const size = readCanvasSize();
+    width = size.width;
+    height = size.height;
     resizeCanvasForDpr();
     updateBounds();
     initWeb();
@@ -424,6 +439,9 @@ if (canvas) {
   canvas.addEventListener('touchend', handleTouchEnd);
   canvas.addEventListener('touchcancel', handleTouchEnd);
   window.addEventListener('resize', handleResize);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', handleResize);
+  }
 
   const gravity = 0.45; 
   const friction = 0.92; 
