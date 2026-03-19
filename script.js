@@ -3,8 +3,9 @@ lucide.createIcons();
 
 // Navbar Scroll Effect
 const navbar = document.getElementById('navbar');
+const mobileNavbarMq = window.matchMedia('(max-width: 767px)');
 const updateNavbarState = () => {
-  const shouldSolid = window.scrollY > 50 || window.innerWidth < 768;
+  const shouldSolid = mobileNavbarMq.matches || window.scrollY > 50;
   if (shouldSolid) {
     navbar.classList.add('bg-[#020202]/80', 'backdrop-blur-md', 'border-b', 'border-white/5', 'py-4');
     navbar.classList.remove('bg-transparent', 'py-6');
@@ -20,34 +21,54 @@ window.addEventListener('resize', updateNavbarState);
 window.addEventListener('load', updateNavbarState);
 window.addEventListener('pageshow', updateNavbarState);
 window.addEventListener('DOMContentLoaded', updateNavbarState);
+mobileNavbarMq.addEventListener('change', updateNavbarState);
 
 // Mobile Menu Toggle
 const mobileMenuBtn = document.getElementById('mobile-menu-btn');
 const mobileMenu = document.getElementById('mobile-menu');
-const menuIcon = mobileMenuBtn.querySelector('[data-lucide]');
+let isMobileMenuOpen = false;
+
+const renderMobileMenuIcon = (name) => {
+  mobileMenuBtn.innerHTML = `<i data-lucide="${name}"></i>`;
+  lucide.createIcons();
+};
+
+const closeMobileMenu = () => {
+  isMobileMenuOpen = false;
+  mobileMenu.style.height = '0px';
+  mobileMenu.style.opacity = '0';
+  renderMobileMenuIcon('menu');
+};
+
+const openMobileMenu = () => {
+  isMobileMenuOpen = true;
+  mobileMenu.style.height = `${mobileMenu.scrollHeight}px`;
+  mobileMenu.style.opacity = '1';
+  renderMobileMenuIcon('x');
+};
 
 mobileMenuBtn.addEventListener('click', () => {
-  if (mobileMenu.style.height === '0px' || !mobileMenu.style.height) {
-    mobileMenu.style.height = mobileMenu.scrollHeight + 'px';
-    mobileMenu.style.opacity = '1';
-    menuIcon.setAttribute('data-lucide', 'x');
-  } else {
-    mobileMenu.style.height = '0px';
-    mobileMenu.style.opacity = '0';
-    menuIcon.setAttribute('data-lucide', 'menu');
+  if (isMobileMenuOpen) {
+    closeMobileMenu();
+    return;
   }
-  lucide.createIcons();
+  openMobileMenu();
 });
 
 // Mobile Menu Links
 document.querySelectorAll('#mobile-menu a').forEach(link => {
   link.addEventListener('click', () => {
-    mobileMenu.style.height = '0px';
-    mobileMenu.style.opacity = '0';
-    menuIcon.setAttribute('data-lucide', 'menu');
-    lucide.createIcons();
+    closeMobileMenu();
   });
 });
+
+window.addEventListener('resize', () => {
+  if (!mobileNavbarMq.matches) {
+    closeMobileMenu();
+  }
+});
+
+renderMobileMenuIcon('menu');
 
 // Intersection Observer for Animations (replaces Framer Motion whileInView)
 const observerOptions = {
@@ -101,14 +122,20 @@ class Spider {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.angle = 0;
+    this.angle = Math.PI / 2;
     this.target = null;
     this.speed = 4;
     this.time = 0;
+    this.settleFrames = 28;
+    this.maxTurnPerFrame = 0.16;
   }
 
   update(sticks, cx, cy, bounds) {
     this.time += 0.1;
+    if (this.settleFrames > 0) {
+      this.settleFrames -= 1;
+    }
+    const isSettling = this.settleFrames > 0;
     const brokenSticks = sticks.filter(s => !s.active);
 
     if (brokenSticks.length > 0) {
@@ -160,7 +187,8 @@ class Spider {
       let diff = targetAngle - this.angle;
       while (diff < -Math.PI) diff += Math.PI * 2;
       while (diff > Math.PI) diff -= Math.PI * 2;
-      this.angle += diff * 0.15;
+      const clampedDiff = clamp(diff, -this.maxTurnPerFrame, this.maxTurnPerFrame);
+      this.angle += isSettling ? clampedDiff * 0.5 : clampedDiff;
     } else {
       this.x = clamp(tx, bounds.minX, bounds.maxX);
       this.y = clamp(ty, bounds.minY, bounds.maxY);
@@ -171,7 +199,8 @@ class Spider {
         let diff = (Math.PI / 2) - this.angle;
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
-        this.angle += diff * 0.1;
+        const clampedDiff = clamp(diff, -this.maxTurnPerFrame, this.maxTurnPerFrame);
+        this.angle += isSettling ? clampedDiff * 0.6 : clampedDiff * 0.35;
       }
     }
   }
@@ -266,18 +295,28 @@ if (canvas) {
   };
 
   let { width, height } = readCanvasSize();
+  let currentDpr = 1;
+  let resizeRaf = 0;
 
   const resizeCanvasForDpr = () => {
     const dprCap = isIOSDevice ? 3.5 : 3;
     const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, dprCap));
+    const nextBufferWidth = Math.max(1, Math.ceil(width * dpr));
+    const nextBufferHeight = Math.max(1, Math.ceil(height * dpr));
+    const hasBufferChanged = canvas.width !== nextBufferWidth || canvas.height !== nextBufferHeight;
+    const hasDprChanged = Math.abs(dpr - currentDpr) > 0.001;
+
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
-    canvas.width = Math.max(1, Math.ceil(width * dpr));
-    canvas.height = Math.max(1, Math.ceil(height * dpr));
+    canvas.width = nextBufferWidth;
+    canvas.height = nextBufferHeight;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.imageSmoothingEnabled = true;
+    currentDpr = dpr;
+
+    return hasBufferChanged || hasDprChanged;
   };
 
   resizeCanvasForDpr();
@@ -434,19 +473,37 @@ if (canvas) {
     handleMouseLeave();
   };
 
-  const handleResize = () => {
+  const handleResize = (forceRebuild = false) => {
+    const prevWidth = width;
+    const prevHeight = height;
     const size = readCanvasSize();
     width = size.width;
     height = size.height;
-    resizeCanvasForDpr();
+    const hasSizeChanged = Math.abs(width - prevWidth) > 1 || Math.abs(height - prevHeight) > 1;
+    const hasCanvasChanged = resizeCanvasForDpr();
+
+    if (!forceRebuild && !hasSizeChanged && !hasCanvasChanged) {
+      return;
+    }
+
     updateBounds();
     initWeb();
   };
 
+  const scheduleResize = (forceRebuild = false) => {
+    if (resizeRaf) {
+      cancelAnimationFrame(resizeRaf);
+    }
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = 0;
+      handleResize(forceRebuild);
+    });
+  };
+
   const settleCanvasSize = () => {
-    handleResize();
-    window.setTimeout(handleResize, 120);
-    window.setTimeout(handleResize, 360);
+    scheduleResize(true);
+    window.setTimeout(() => scheduleResize(false), 120);
+    window.setTimeout(() => scheduleResize(false), 360);
   };
 
   canvas.style.touchAction = 'none';
@@ -456,15 +513,15 @@ if (canvas) {
   canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
   canvas.addEventListener('touchend', handleTouchEnd);
   canvas.addEventListener('touchcancel', handleTouchEnd);
-  window.addEventListener('resize', handleResize);
+  window.addEventListener('resize', () => scheduleResize(false));
   window.addEventListener('orientationchange', settleCanvasSize);
   window.addEventListener('load', settleCanvasSize);
   window.addEventListener('pageshow', settleCanvasSize);
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', handleResize);
+    window.visualViewport.addEventListener('resize', () => scheduleResize(false));
   }
   if (window.ResizeObserver) {
-    const observer = new ResizeObserver(() => handleResize());
+    const observer = new ResizeObserver(() => scheduleResize(false));
     observer.observe(heroSection);
   }
 
